@@ -260,15 +260,9 @@ func runRelease(ctx context.Context, w io.Writer, dir string, args []string) (su
 }
 
 type moduleInfo struct {
-	modRoot                  string // module root directory
-	repoRoot                 string // repository root directory (may be "")
-	modPath                  string // module path in go.mod
-	version                  string // resolved version or "none"
-	versionQuery             string // a query like "latest" or "dev-branch", if specified
-	versionInferred          bool   // true if the version was unspecified and inferred
-	highestTransitiveVersion string // version of the highest transitive self-dependency (cycle)
-	modPathMajor             string // major version suffix like "/v3" or ".v2"
-	tagPrefix                string // prefix for version tags if module not in repo root
+	modRoot string // module root directory
+	modPath string // module path in go.mod
+	version string // resolved version or "none"
 
 	goModPath string        // file path to go.mod
 	goModData []byte        // content of go.mod
@@ -278,9 +272,6 @@ type moduleInfo struct {
 	diagnostics []string            // problems not related to loading specific packages
 	pkgs        []*packages.Package // loaded packages with type information
 
-	// Versions of this module which already exist. Only loaded for release
-	// (not base).
-	existingVersions []string
 }
 
 // loadLocalModule loads information about a module and its packages from a
