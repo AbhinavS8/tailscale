@@ -282,21 +282,17 @@ type moduleInfo struct {
 // repoRoot is the root directory of the repository containing the module or "".
 //
 // version is a proposed version for the module or "".
-func loadLocalModule(ctx context.Context, modRoot, repoRoot, version string) (m moduleInfo, err error) {
-	if repoRoot != "" && !hasFilePathPrefix(modRoot, repoRoot) {
-		return moduleInfo{}, fmt.Errorf("module root %q is not in repository root %q", modRoot, repoRoot)
-	}
+func loadLocalModule(ctx context.Context, modRoot, version string) (m moduleInfo, err error) {
+	// if repoRoot != "" && !hasFilePathPrefix(modRoot, repoRoot) {
+	// 	return moduleInfo{}, fmt.Errorf("module root %q is not in repository root %q", modRoot, repoRoot)
+	// }
 
 	// Load the go.mod file and check the module path and go version.
 	m = moduleInfo{
-		modRoot:   modRoot,
-		repoRoot:  repoRoot,
+		modRoot: modRoot,
+		// repoRoot:  repoRoot,
 		version:   version,
 		goModPath: filepath.Join(modRoot, "go.mod"),
-	}
-
-	if version != "" && semver.Compare(version, "v0.0.0-99999999999999-zzzzzzzzzzzz") < 0 {
-		m.diagnostics = append(m.diagnostics, fmt.Sprintf("Version %s is lower than most pseudo-versions. Consider releasing v0.1.0-0 instead.", version))
 	}
 
 	m.goModData, err = os.ReadFile(m.goModPath)
@@ -314,63 +310,63 @@ func loadLocalModule(ctx context.Context, modRoot, repoRoot, version string) (m 
 	if err := checkModPath(m.modPath); err != nil {
 		return moduleInfo{}, err
 	}
-	var ok bool
-	_, m.modPathMajor, ok = module.SplitPathVersion(m.modPath)
-	if !ok {
-		// we just validated the path above.
-		panic(fmt.Sprintf("could not find version suffix in module path %q", m.modPath))
-	}
+	// var ok bool
+	// _, m.modPathMajor, ok = module.SplitPathVersion(m.modPath)
+	// if !ok {
+	// 	// we just validated the path above.
+	// 	panic(fmt.Sprintf("could not find version suffix in module path %q", m.modPath))
+	// }
 	if m.goModFile.Go == nil {
 		m.diagnostics = append(m.diagnostics, "go.mod: go directive is missing")
 	}
 
-	// Determine the version tag prefix for the module within the repository.
-	if repoRoot != "" && modRoot != repoRoot {
-		if strings.HasPrefix(m.modPathMajor, ".") {
-			m.diagnostics = append(m.diagnostics, fmt.Sprintf("%s: module path starts with gopkg.in and must be declared in the root directory of the repository", m.modPath))
-		} else {
-			codeDir := filepath.ToSlash(modRoot[len(repoRoot)+1:])
-			var altGoModPath string
-			if m.modPathMajor == "" {
-				// module has no major version suffix.
-				// codeDir must be a suffix of modPath.
-				// tagPrefix is codeDir with a trailing slash.
-				if strings.HasSuffix(m.modPath, "/"+codeDir) {
-					m.tagPrefix = codeDir + "/"
-				} else {
-					m.diagnostics = append(m.diagnostics, fmt.Sprintf("%s: module path must end with %[2]q, since it is in subdirectory %[2]q", m.modPath, codeDir))
-				}
-			} else {
-				if strings.HasSuffix(m.modPath, "/"+codeDir) {
-					// module has a major version suffix and is in a major version subdirectory.
-					// codeDir must be a suffix of modPath.
-					// tagPrefix must not include the major version.
-					m.tagPrefix = codeDir[:len(codeDir)-len(m.modPathMajor)+1]
-					altGoModPath = modRoot[:len(modRoot)-len(m.modPathMajor)+1] + "go.mod"
-				} else if strings.HasSuffix(m.modPath, "/"+codeDir+m.modPathMajor) {
-					// module has a major version suffix and is not in a major version subdirectory.
-					// codeDir + modPathMajor is a suffix of modPath.
-					// tagPrefix is codeDir with a trailing slash.
-					m.tagPrefix = codeDir + "/"
-					altGoModPath = filepath.Join(modRoot, m.modPathMajor[1:], "go.mod")
-				} else {
-					m.diagnostics = append(m.diagnostics, fmt.Sprintf("%s: module path must end with %[2]q or %q, since it is in subdirectory %[2]q", m.modPath, codeDir, codeDir+m.modPathMajor))
-				}
-			}
+	// // Determine the version tag prefix for the module within the repository.
+	// if repoRoot != "" && modRoot != repoRoot {
+	// 	if strings.HasPrefix(m.modPathMajor, ".") {
+	// 		m.diagnostics = append(m.diagnostics, fmt.Sprintf("%s: module path starts with gopkg.in and must be declared in the root directory of the repository", m.modPath))
+	// 	} else {
+	// 		codeDir := filepath.ToSlash(modRoot[len(repoRoot)+1:])
+	// 		var altGoModPath string
+	// 		if m.modPathMajor == "" {
+	// 			// module has no major version suffix.
+	// 			// codeDir must be a suffix of modPath.
+	// 			// tagPrefix is codeDir with a trailing slash.
+	// 			if strings.HasSuffix(m.modPath, "/"+codeDir) {
+	// 				m.tagPrefix = codeDir + "/"
+	// 			} else {
+	// 				m.diagnostics = append(m.diagnostics, fmt.Sprintf("%s: module path must end with %[2]q, since it is in subdirectory %[2]q", m.modPath, codeDir))
+	// 			}
+	// 		} else {
+	// 			if strings.HasSuffix(m.modPath, "/"+codeDir) {
+	// 				// module has a major version suffix and is in a major version subdirectory.
+	// 				// codeDir must be a suffix of modPath.
+	// 				// tagPrefix must not include the major version.
+	// 				m.tagPrefix = codeDir[:len(codeDir)-len(m.modPathMajor)+1]
+	// 				altGoModPath = modRoot[:len(modRoot)-len(m.modPathMajor)+1] + "go.mod"
+	// 			} else if strings.HasSuffix(m.modPath, "/"+codeDir+m.modPathMajor) {
+	// 				// module has a major version suffix and is not in a major version subdirectory.
+	// 				// codeDir + modPathMajor is a suffix of modPath.
+	// 				// tagPrefix is codeDir with a trailing slash.
+	// 				m.tagPrefix = codeDir + "/"
+	// 				altGoModPath = filepath.Join(modRoot, m.modPathMajor[1:], "go.mod")
+	// 			} else {
+	// 				m.diagnostics = append(m.diagnostics, fmt.Sprintf("%s: module path must end with %[2]q or %q, since it is in subdirectory %[2]q", m.modPath, codeDir, codeDir+m.modPathMajor))
+	// 			}
+	// 		}
 
-			// Modules with major version suffixes can be defined in two places
-			// (e.g., sub/go.mod and sub/v2/go.mod). They must not be defined in both.
-			if altGoModPath != "" {
-				if data, err := os.ReadFile(altGoModPath); err == nil {
-					if altModPath := modfile.ModulePath(data); m.modPath == altModPath {
-						goModRel, _ := filepath.Rel(repoRoot, m.goModPath)
-						altGoModRel, _ := filepath.Rel(repoRoot, altGoModPath)
-						m.diagnostics = append(m.diagnostics, fmt.Sprintf("module is defined in two locations:\n\t%s\n\t%s", goModRel, altGoModRel))
-					}
-				}
-			}
-		}
-	}
+	// 		// Modules with major version suffixes can be defined in two places
+	// 		// (e.g., sub/go.mod and sub/v2/go.mod). They must not be defined in both.
+	// 		if altGoModPath != "" {
+	// 			if data, err := os.ReadFile(altGoModPath); err == nil {
+	// 				if altModPath := modfile.ModulePath(data); m.modPath == altModPath {
+	// 					goModRel, _ := filepath.Rel(repoRoot, m.goModPath)
+	// 					altGoModRel, _ := filepath.Rel(repoRoot, altGoModPath)
+	// 					m.diagnostics = append(m.diagnostics, fmt.Sprintf("module is defined in two locations:\n\t%s\n\t%s", goModRel, altGoModRel))
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	// Load the module's packages.
 	// We pack the module into a zip file and extract it to a temporary directory
@@ -415,18 +411,18 @@ func loadLocalModule(ctx context.Context, modRoot, repoRoot, version string) (m 
 		}
 	}
 
-	highestVersion, err := findSelectedVersion(ctx, tmpLoadDir, m.modPath)
-	if err != nil {
-		return moduleInfo{}, err
-	}
+	// highestVersion, err := findSelectedVersion(ctx, tmpLoadDir, m.modPath)
+	// if err != nil {
+	// 	return moduleInfo{}, err
+	// }
 
-	if highestVersion != "" {
-		// A version of the module is included in the transitive dependencies.
-		// Add it to the moduleInfo so that the release report stage can use it
-		// in verifying the version or suggestion a new version, depending on
-		// whether the user provided a version already.
-		m.highestTransitiveVersion = highestVersion
-	}
+	// if highestVersion != "" {
+	// 	// A version of the module is included in the transitive dependencies.
+	// 	// Add it to the moduleInfo so that the release report stage can use it
+	// 	// in verifying the version or suggestion a new version, depending on
+	// 	// whether the user provided a version already.
+	// 	m.highestTransitiveVersion = highestVersion
+	// }
 
 	retracted, err := loadRetractions(ctx, tmpLoadDir)
 	if err != nil {
@@ -459,12 +455,12 @@ func loadDownloadedModule(ctx context.Context, modPath, version, max string) (m 
 		return moduleInfo{}, err
 	}
 
-	var ok bool
-	_, m.modPathMajor, ok = module.SplitPathVersion(modPath)
-	if !ok {
-		// we just validated the path above.
-		panic(fmt.Sprintf("could not find version suffix in module path %q", modPath))
-	}
+	// var ok bool
+	// _, m.modPathMajor, ok = module.SplitPathVersion(modPath)
+	// if !ok {
+	// 	// we just validated the path above.
+	// 	panic(fmt.Sprintf("could not find version suffix in module path %q", modPath))
+	// }
 
 	if version == "none" {
 		// We don't have a base version to compare against.
@@ -537,12 +533,12 @@ func loadDownloadedModule(ctx context.Context, modPath, version, max string) (m 
 		return moduleInfo{}, err
 	}
 
-	// Calculate the existing versions.
-	ev, err := existingVersions(ctx, m.modPath, tmpLoadDir)
-	if err != nil {
-		return moduleInfo{}, err
-	}
-	m.existingVersions = ev
+	// // Calculate the existing versions.
+	// ev, err := existingVersions(ctx, m.modPath, tmpLoadDir)
+	// if err != nil {
+	// 	return moduleInfo{}, err
+	// }
+	// m.existingVersions = ev
 
 	return m, nil
 }
